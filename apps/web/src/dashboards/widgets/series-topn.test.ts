@@ -144,6 +144,26 @@ test("a real group named Other does not collide with the rollup remainder", () =
   assert.equal(series.filter((s) => s.name === "Other").length, 1);
 });
 
+test("rollup name stays unique even when 'Other' and 'Other (rest)' are real groups", () => {
+  const rows = rowsFor(
+    [
+      { group: "Other", count: 100 },
+      { group: "Other (rest)", count: 90 },
+      { group: "g1", count: 10 },
+      { group: "g2", count: 5 },
+    ],
+    ["2026-06-01 00:00:00"],
+  );
+  const series = buildTopNSeries(rows, count, 2);
+  const rollup = series.find((s) => s.isOther);
+  assert.ok(rollup);
+  // Distinct from both real group names that would otherwise collide.
+  const realNames = series.filter((s) => !s.isOther).map((s) => s.name);
+  assert.equal(realNames.includes(rollup.name), false);
+  // All output names are unique (visibility/legend/tooltip are name-keyed).
+  assert.equal(new Set(series.map((s) => s.name)).size, series.length);
+});
+
 test("default top-N is 10", () => {
   const rows = rowsFor(
     Array.from({ length: 14 }, (_, i) => ({ group: `g${i}`, count: 14 - i })),

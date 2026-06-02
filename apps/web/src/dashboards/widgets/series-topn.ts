@@ -24,6 +24,15 @@ export type ChartSeries = {
   isOther: boolean;
 };
 
+// Pick a rollup label that doesn't clash with any real group name, so the
+// synthetic series stays distinguishable everywhere series are keyed by name.
+function uniqueOtherName(taken: Set<string>): string {
+  if (!taken.has(OTHER_LABEL)) return OTHER_LABEL;
+  let name = `${OTHER_LABEL} (rest)`;
+  for (let i = 2; taken.has(name); i++) name = `${OTHER_LABEL} (rest ${i})`;
+  return name;
+}
+
 // bucket is ClickHouse "YYYY-MM-DD HH:MM:SS" in UTC (see timeFormat.ts).
 function bucketToMs(bucket: string): number {
   return new Date(`${bucket.replace(" ", "T")}Z`).getTime();
@@ -88,9 +97,9 @@ export function buildTopNSeries<T extends GroupedRow>(
     .filter((g) => topGroups.has(g))
     .map((g) => toSeries(g, points.get(g) ?? [], false));
   if (otherArr) {
-    // Disambiguate the legend label if a real group is already named "Other".
-    const name = topGroups.has(OTHER_LABEL) ? `${OTHER_LABEL} (rest)` : OTHER_LABEL;
-    series.push(toSeries(name, otherArr, true));
+    // The rollup name must be unique among the real series — visibility,
+    // legend, and tooltip dedup are all keyed by name (see CountChart).
+    series.push(toSeries(uniqueOtherName(topGroups), otherArr, true));
   }
   return series;
 }
