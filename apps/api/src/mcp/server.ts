@@ -6,6 +6,7 @@ import { z } from "zod";
 import { registerAlertTools } from "./alerts.js";
 import { listServices, queryLogs, queryMetrics, queryTraces } from "./clickhouse.js";
 import { registerDashboardTools } from "./dashboards.js";
+import { registerIncidentTools } from "./incidents.js";
 import {
   assertProjectAccess,
   listAccessibleProjects,
@@ -279,6 +280,7 @@ export function createMcpServerForSession(session: McpSession): McpServer {
   if (!session.telemetryOnly) {
     registerAlertTools(server, session, session.ch);
     registerDashboardTools(server, session);
+    registerIncidentTools(server, session);
   }
 
   return server;
