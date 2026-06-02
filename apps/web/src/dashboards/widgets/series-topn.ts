@@ -58,22 +58,22 @@ export function buildTopNSeries<T extends GroupedRow>(
   const topGroups = new Set(ranked.slice(0, cut));
   const hasOther = ranked.length > topGroups.size;
 
-  // Accumulate per-bucket values, zero-filled, so lines/bars don't gap.
+  // Accumulate per-bucket values, zero-filled, so lines/bars don't gap. The
+  // rollup remainder lives in its own accumulator (not the points map) so a
+  // real group literally named "Other" can't collide with the synthetic series.
   const points = new Map<string, number[]>();
   for (const g of topGroups) points.set(g, new Array(buckets.length).fill(0));
-  if (hasOther) points.set(OTHER_LABEL, new Array(buckets.length).fill(0));
+  const otherArr = hasOther ? new Array<number>(buckets.length).fill(0) : null;
 
   for (const r of rows) {
     const g = r.group || NONE_LABEL;
-    const key = topGroups.has(g) ? g : OTHER_LABEL;
-    const arr = points.get(key);
+    const arr = topGroups.has(g) ? points.get(g) : otherArr;
     const i = bucketIndex.get(r.bucket);
     if (!arr || i === undefined) continue;
     arr[i] = (arr[i] ?? 0) + valFn(r);
   }
 
-  const toSeries = (name: string, isOther: boolean): ChartSeries => {
-    const arr = points.get(name) ?? [];
+  const toSeries = (name: string, arr: number[], isOther: boolean): ChartSeries => {
     let total = 0;
     const data: [number, number][] = buckets.map((b, i) => {
       const v = arr[i] ?? 0;
@@ -84,7 +84,13 @@ export function buildTopNSeries<T extends GroupedRow>(
   };
 
   // Real series in rank order, "Other" always last.
-  const series = ranked.filter((g) => topGroups.has(g)).map((g) => toSeries(g, false));
-  if (hasOther) series.push(toSeries(OTHER_LABEL, true));
+  const series = ranked
+    .filter((g) => topGroups.has(g))
+    .map((g) => toSeries(g, points.get(g) ?? [], false));
+  if (otherArr) {
+    // Disambiguate the legend label if a real group is already named "Other".
+    const name = topGroups.has(OTHER_LABEL) ? `${OTHER_LABEL} (rest)` : OTHER_LABEL;
+    series.push(toSeries(name, otherArr, true));
+  }
   return series;
 }

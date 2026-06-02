@@ -115,6 +115,35 @@ test("limit < 1 means no rollup", () => {
   );
 });
 
+test("a real group named Other does not collide with the rollup remainder", () => {
+  // 'Other' is itself a top group here; g2/g3 fall beyond the cut and roll up.
+  const rows = rowsFor(
+    [
+      { group: "Other", count: 100 },
+      { group: "g1", count: 50 },
+      { group: "g2", count: 10 },
+      { group: "g3", count: 5 },
+    ],
+    ["2026-06-01 00:00:00", "2026-06-01 00:01:00"],
+  );
+  const series = buildTopNSeries(rows, count, 2);
+
+  // The real "Other" group keeps its own (un-merged) data.
+  const real = series.find((s) => s.name === "Other" && !s.isOther);
+  assert.ok(real, "real 'Other' group is preserved");
+  assert.equal(real.total, 200); // 100 across 2 buckets
+
+  // The synthetic rollup is a distinct series with a distinct legend label.
+  const rollup = series.find((s) => s.isOther);
+  assert.ok(rollup, "rollup series present");
+  assert.equal(rollup.total, 30); // (10 + 5) across 2 buckets
+  assert.notEqual(rollup.name, real.name);
+
+  // Exactly one rollup and exactly one series literally named "Other".
+  assert.equal(series.filter((s) => s.isOther).length, 1);
+  assert.equal(series.filter((s) => s.name === "Other").length, 1);
+});
+
 test("default top-N is 10", () => {
   const rows = rowsFor(
     Array.from({ length: 14 }, (_, i) => ({ group: `g${i}`, count: 14 - i })),
