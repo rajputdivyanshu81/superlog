@@ -831,6 +831,74 @@ function histogramQuantileQuery(args: {
   `;
 }
 
+function cumulativeMonotonicSumQuery(args: {
+  table: string;
+  step: Step;
+  groupExpr: string;
+  conds: string[];
+  sinceExpr: string;
+}): string {
+  const { table, step, groupExpr, conds, sinceExpr } = args;
+  const where = conds.join(" AND ");
+  return `
+    SELECT
+      bucket,
+      group_key,
+      sum(v) AS v
+    FROM (
+      SELECT
+        toString(toStartOfInterval(TimeUnix, INTERVAL ${step.n} ${step.unit})) AS bucket,
+        group_key,
+        if(
+          previous_value IS NULL,
+          if(StartTimeUnix >= ${sinceExpr}, Value, 0),
+          if(Value >= previous_value, Value - previous_value, 0)
+        ) AS v
+      FROM (
+        SELECT
+          TimeUnix,
+          StartTimeUnix,
+          Value,
+          ${groupExpr} AS group_key,
+          lagInFrame(toNullable(Value), 1, NULL) OVER (
+            PARTITION BY series_key
+            ORDER BY TimeUnix ASC
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+          ) AS previous_value
+        FROM (
+          SELECT
+            *,
+            cityHash64(
+              ServiceName,
+              MetricName,
+              MetricUnit,
+              toString(ResourceAttributes),
+              toString(Attributes),
+              toString(StartTimeUnix)
+            ) AS series_key
+          FROM ${table}
+          WHERE ${where}
+            AND AggregationTemporality = 2
+            AND IsMonotonic
+        )
+      )
+
+      UNION ALL
+
+      SELECT
+        toString(toStartOfInterval(TimeUnix, INTERVAL ${step.n} ${step.unit})) AS bucket,
+        ${groupExpr} AS group_key,
+        Value AS v
+      FROM ${table}
+      WHERE ${where}
+        AND NOT (AggregationTemporality = 2 AND IsMonotonic)
+    )
+    GROUP BY bucket, group_key
+    ORDER BY bucket ASC
+    LIMIT 10000
+  `;
+}
+
 export async function listMetricNames(
   ch: ClickHouseClient,
   projectId: string,
@@ -918,6 +986,14 @@ export async function metricSeries(
             conds,
             q: aggregation === "p95" ? 0.95 : 0.99,
           })
+        : kind === "sum" && (!aggregation || aggregation === "sum")
+          ? cumulativeMonotonicSumQuery({
+              table,
+              step,
+              groupExpr,
+              conds,
+              sinceExpr,
+            })
         : `
           SELECT
             toString(toStartOfInterval(TimeUnix, INTERVAL ${step.n} ${step.unit})) AS bucket,

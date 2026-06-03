@@ -230,6 +230,31 @@ test("metricSeries can exclude resource attributes by substring", async () => {
   assert.equal(capture.params?.attr_v_0, ".local");
 });
 
+test("metricSeries converts cumulative monotonic sum counters into per-bucket deltas", async () => {
+  const queries: string[] = [];
+
+  await metricSeries(
+    fakeClickhouseMulti(queries),
+    "project-1",
+    "superlog.proxy.ingest.requests",
+    { range: { since: "now() - INTERVAL 1 HOUR", until: "now()" } },
+    "attr:tenant.org.name",
+    { n: 1, unit: "MINUTE" },
+    "sum",
+  );
+
+  const sumQuery = queries.find((q) => q.includes("FROM otel_metrics_sum"));
+  assert.ok(sumQuery, "expected a sum metric query");
+  assert.match(sumQuery, /AggregationTemporality = 2/);
+  assert.match(sumQuery, /IsMonotonic/);
+  assert.match(sumQuery, /lagInFrame\(toNullable\(Value\), 1, NULL\)/);
+  assert.match(sumQuery, /Value - previous_value/);
+  assert.match(sumQuery, /StartTimeUnix >= now\(\) - INTERVAL 1 HOUR/);
+  assert.match(sumQuery, /NOT \(AggregationTemporality = 2 AND IsMonotonic\)/);
+  assert.match(sumQuery, /Attributes\[\{groupKey:String\}\] AS group_key/);
+  assert.equal(queries.length, 4);
+});
+
 test("queryTraces returns resource attributes and flattened exception fields", async () => {
   const capture: { query?: string; params?: Record<string, unknown> } = {};
 
