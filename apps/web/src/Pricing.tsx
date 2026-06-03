@@ -461,12 +461,20 @@ function PricingFooter() {
         <div>
           <h3 className="text-[13px] font-semibold text-subtle">Product</h3>
           <div className="mt-5">
-            <a
-              href="/pricing"
-              className="text-[14px] font-medium text-muted transition-colors hover:text-fg"
-            >
-              Pricing
-            </a>
+            <div className="flex flex-col gap-3">
+              <a
+                href="/pricing"
+                className="text-[14px] font-medium text-muted transition-colors hover:text-fg"
+              >
+                Pricing
+              </a>
+              <a
+                href="/tos"
+                className="text-[14px] font-medium text-muted transition-colors hover:text-fg"
+              >
+                Terms of Service
+              </a>
+            </div>
           </div>
         </div>
 

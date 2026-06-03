@@ -10,5 +10,16 @@ test("landing navbar uses the public Superlog GitHub repository URL", () => {
 test("landing top nav renders a GitHub link wired to the repository URL", async () => {
   const source = await readFile(new URL("./Landing.tsx", import.meta.url), "utf8");
 
-  assert.match(source, /href=\{LANDING_GITHUB_REPO_URL\}[\s\S]*<GitHubIcon \/>[\s\S]*GitHub\s*<\/a>/);
+  assert.match(
+    source,
+    /href=\{LANDING_GITHUB_REPO_URL\}[\s\S]*<GitHubIcon \/>[\s\S]*GitHub\s*<\/a>/,
+  );
+});
+
+test("landing footer links to the terms of service page", async () => {
+  const source = await readFile(new URL("./Landing.tsx", import.meta.url), "utf8");
+  const appSource = await readFile(new URL("./App.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /href="\/tos"[\s\S]*Terms of Service\s*<\/a>/);
+  assert.match(appSource, /<Route path="\/tos" element=\{<TermsOfService \/>\} \/>/);
 });

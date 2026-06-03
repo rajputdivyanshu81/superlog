@@ -16,6 +16,7 @@ import { PrFeedback } from "./PrFeedback.tsx";
 import { Pricing } from "./Pricing.tsx";
 import { ResetPassword } from "./ResetPassword.tsx";
 import { Settings } from "./Settings.tsx";
+import { TermsOfService } from "./TermsOfService.tsx";
 import { AlertEdit } from "./alerts/AlertEdit.tsx";
 import { AlertsList } from "./alerts/AlertsList.tsx";
 import { useMe } from "./api.ts";
@@ -88,6 +89,7 @@ export function App() {
         <Route path="/accept-invitation" element={<AcceptInvitation />} />
         <Route path="/oauth/consent" element={<OauthConsent />} />
         <Route path="/pricing" element={<Pricing />} />
+        <Route path="/tos" element={<TermsOfService />} />
         <Route path="/signup" element={<SignupRoute />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
