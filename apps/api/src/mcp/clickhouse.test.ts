@@ -276,7 +276,10 @@ test("metricSeries spreads cumulative monotonic sum increases across the interva
   // interval. Needs the previous sample's timestamp and an overlap weight.
   assert.match(sumQuery, /lagInFrame\(TimeUnix, 1, TimeUnix\)/);
   assert.match(sumQuery, /ARRAY JOIN spread/);
-  assert.match(sumQuery, /least\(b, g \+ 60\) - greatest\(a, g\)/);
+  // Interval math is in nanoseconds (1 MINUTE step = 60e9 ns) so sub-second
+  // sample intervals aren't quantized away.
+  assert.match(sumQuery, /toUnixTimestamp64Nano\(prev_time\)/);
+  assert.match(sumQuery, /least\(b, g \+ 60000000000\) - greatest\(a, g\)/);
   assert.match(sumQuery, /\/ dt/);
   // Non-cumulative / non-monotonic points are still summed as-is.
   assert.match(sumQuery, /NOT \(AggregationTemporality = 2 AND IsMonotonic\)/);

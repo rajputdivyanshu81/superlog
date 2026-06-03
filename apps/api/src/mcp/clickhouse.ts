@@ -841,7 +841,11 @@ function cumulativeMonotonicSumQuery(args: {
 }): string {
   const { table, step, groupExpr, conds, sinceExpr } = args;
   const where = conds.join(" AND ");
-  const stepSec = stepSeconds(step);
+  // Bucket arithmetic is done in nanoseconds (TimeUnix is DateTime64) so that
+  // sub-second sample intervals aren't quantized away — truncating to whole
+  // seconds can collapse a short interval to zero duration and silently drop
+  // its increase.
+  const stepNs = stepSeconds(step) * 1_000_000_000;
   return `
     SELECT
       bucket,
@@ -849,7 +853,7 @@ function cumulativeMonotonicSumQuery(args: {
       sum(v) AS v
     FROM (
       SELECT
-        toString(toStartOfInterval(toDateTime(sp.1), INTERVAL ${step.n} ${step.unit})) AS bucket,
+        toString(toStartOfInterval(toDateTime(intDiv(sp.1, 1000000000)), INTERVAL ${step.n} ${step.unit})) AS bucket,
         group_key,
         sp.2 AS v
       FROM (
@@ -860,14 +864,14 @@ function cumulativeMonotonicSumQuery(args: {
             -- First sample of a series: no interval to spread over. Only count
             -- it when the series started inside the window, dropped into the
             -- bucket the sample lands in.
-            [ tuple(intDiv(b, ${stepSec}) * ${stepSec}, if(StartTimeUnix >= ${sinceExpr}, Value, 0)) ],
+            [ tuple(intDiv(b, ${stepNs}) * ${stepNs}, if(StartTimeUnix >= ${sinceExpr}, Value, 0)) ],
             -- Spread the increase across every step-aligned bucket the interval
-            -- (a, b] touches, weighted by overlap seconds / interval seconds.
+            -- (a, b] touches, weighted by overlap nanos / interval nanos.
             arrayMap(
-              g -> tuple(g, delta * (least(b, g + ${stepSec}) - greatest(a, g)) / dt),
+              g -> tuple(g, delta * (least(b, g + ${stepNs}) - greatest(a, g)) / dt),
               arrayMap(
-                i -> first_bucket + i * ${stepSec},
-                range(toUInt32(intDiv(intDiv(b - 1, ${stepSec}) * ${stepSec} - first_bucket, ${stepSec}) + 1))
+                i -> first_bucket + i * ${stepNs},
+                range(toUInt32(intDiv(intDiv(b - 1, ${stepNs}) * ${stepNs} - first_bucket, ${stepNs}) + 1))
               )
             )
           ) AS spread
@@ -878,10 +882,10 @@ function cumulativeMonotonicSumQuery(args: {
             Value,
             previous_value,
             if(Value >= previous_value, Value - previous_value, 0) AS delta,
-            toUnixTimestamp(prev_time) AS a,
-            toUnixTimestamp(TimeUnix) AS b,
-            greatest(toUnixTimestamp(TimeUnix) - toUnixTimestamp(prev_time), 1) AS dt,
-            intDiv(toUnixTimestamp(prev_time), ${stepSec}) * ${stepSec} AS first_bucket
+            toUnixTimestamp64Nano(prev_time) AS a,
+            toUnixTimestamp64Nano(TimeUnix) AS b,
+            greatest(toUnixTimestamp64Nano(TimeUnix) - toUnixTimestamp64Nano(prev_time), 1) AS dt,
+            intDiv(toUnixTimestamp64Nano(prev_time), ${stepNs}) * ${stepNs} AS first_bucket
           FROM (
             SELECT
               TimeUnix,
