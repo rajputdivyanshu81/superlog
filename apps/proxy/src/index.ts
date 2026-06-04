@@ -417,12 +417,14 @@ const server = serve({ fetch: app.fetch, port: PORT });
 // default 5s keepAliveTimeout closes idle keep-alive sockets the balancer still
 // considers pooled; reusing one then gets a RST and surfaces as a 502 to the
 // client even though the app returned 200. Periodic OTLP metric exporters
-// (default ~60s interval) hit this race the hardest. Keep the keep-alive above
-// the balancer idle timeout, and headersTimeout above keepAliveTimeout per
-// Node's required ordering.
+// (default ~60s interval) hit this race the hardest. Keep the keep-alive
+// comfortably above the balancer idle timeout: a thin (~5s) margin still leaks
+// 502s in bursts where many wall-clock-aligned exporters reuse pooled sockets at
+// once and the event loop is briefly busy, so we keep a wide margin. headersTimeout
+// stays above keepAliveTimeout per Node's required ordering.
 if ("keepAliveTimeout" in server) {
-  server.keepAliveTimeout = 65_000;
-  server.headersTimeout = 66_000;
+  server.keepAliveTimeout = 75_000;
+  server.headersTimeout = 76_000;
 }
 if (ingestQueue && ingestQueueConfig?.consumerEnabled) {
   ingestQueue.startConsumer(COLLECTOR_URL);

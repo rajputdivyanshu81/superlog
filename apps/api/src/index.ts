@@ -2747,10 +2747,11 @@ const server = serve({ fetch: app.fetch, port: PORT });
 // Same load-balancer keep-alive concern as the proxy: Node's default 5s
 // keepAliveTimeout lets it close idle sockets an upstream LB (typically ~60s
 // idle timeout) still pools, so reused connections RST and surface as a 502
-// even though the app is healthy. Keep the keep-alive above the LB idle
-// timeout, with headersTimeout above keepAliveTimeout per Node's required order.
+// even though the app is healthy. Keep the keep-alive comfortably above the LB
+// idle timeout — a thin margin still leaks 502s under bursty connection reuse —
+// with headersTimeout above keepAliveTimeout per Node's required order.
 if ("keepAliveTimeout" in server) {
-  server.keepAliveTimeout = 65_000;
-  server.headersTimeout = 66_000;
+  server.keepAliveTimeout = 75_000;
+  server.headersTimeout = 76_000;
 }
 logger.info({ port: PORT }, "superlog api listening");
