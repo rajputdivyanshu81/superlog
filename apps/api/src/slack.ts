@@ -682,33 +682,18 @@ export function mountSlackAuthed(app: Hono<any>): void {
     const row = await findInstallation(ctx.projectId);
     if (!row) return c.json({ error: "slack not installed" }, 404);
 
-    const url = new URL("https://slack.com/api/conversations.list");
-    url.searchParams.set("types", "public_channel,private_channel");
-    url.searchParams.set("exclude_archived", "true");
-    url.searchParams.set("limit", "200");
-    const res = await fetch(url, {
-      headers: { authorization: `Bearer ${row.botAccessToken}` },
-    });
-    const data = (await res.json()) as SlackConversationsList;
-    if (!data.ok) {
-      log.warn(
-        { team_id: row.teamId, error: data.error ?? "unknown" },
-        "slack conversations.list failed",
-      );
-      if (data.error === "not_authed" || data.error === "token_revoked") {
+    const result = await listSlackChannels(row.botAccessToken);
+    if (!result.ok) {
+      log.warn({ team_id: row.teamId, error: result.error }, "slack conversations.list failed");
+      if (result.error === "not_authed" || result.error === "token_revoked") {
         await db
           .update(schema.slackInstallations)
           .set({ revokedAt: new Date() })
           .where(eq(schema.slackInstallations.id, row.id));
       }
-      return c.json({ error: data.error ?? "unknown" }, 502);
+      return c.json({ error: result.error }, 502);
     }
-    const channels = (data.channels ?? []).map((ch) => ({
-      id: ch.id,
-      name: ch.name,
-      isPrivate: ch.is_private ?? false,
-    }));
-    return c.json({ channels });
+    return c.json({ channels: result.channels });
   });
 
   app.get("/api/projects/:projectId/slack-route", async (c) => {
@@ -978,7 +963,48 @@ type SlackConversationsList = {
   ok: boolean;
   error?: string;
   channels?: { id: string; name: string; is_private?: boolean }[];
+  response_metadata?: { next_cursor?: string };
 };
+
+export type SlackChannelSummary = { id: string; name: string; isPrivate: boolean };
+
+export type ListSlackChannelsResult =
+  | { ok: true; channels: SlackChannelSummary[] }
+  | { ok: false; error: string };
+
+// Slack's conversations.list returns at most `limit` channels per page; a big
+// workspace needs cursor pagination or the list silently truncates — and a
+// private channel the bot was invited to can fall off the end and "disappear"
+// from the dropdown. Walk every page (capped) and aggregate. Note: even with
+// groups:read, Slack only returns private channels the bot is a *member* of,
+// so the user still has to `/invite` the bot to a private channel for it to
+// show up at all.
+export async function listSlackChannels(
+  token: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<ListSlackChannelsResult> {
+  const channels: SlackChannelSummary[] = [];
+  let cursor: string | undefined;
+  // Hard page cap (200 * 50 = 10k channels) so a misbehaving cursor can't loop.
+  for (let page = 0; page < 50; page++) {
+    const url = new URL("https://slack.com/api/conversations.list");
+    url.searchParams.set("types", "public_channel,private_channel");
+    url.searchParams.set("exclude_archived", "true");
+    url.searchParams.set("limit", "200");
+    if (cursor) url.searchParams.set("cursor", cursor);
+    const res = await fetchImpl(url, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const data = (await res.json()) as SlackConversationsList;
+    if (!data.ok) return { ok: false, error: data.error ?? "unknown" };
+    for (const ch of data.channels ?? []) {
+      channels.push({ id: ch.id, name: ch.name, isPrivate: ch.is_private ?? false });
+    }
+    cursor = data.response_metadata?.next_cursor || undefined;
+    if (!cursor) break;
+  }
+  return { ok: true, channels };
+}
 
 // Slack interactivity envelope. `view.state.values` is keyed by block_id
 // then action_id; for the feedback modal that's

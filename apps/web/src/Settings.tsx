@@ -70,6 +70,7 @@ import {
   useWebhookDeliveries,
   useWebhooks,
 } from "./api";
+import { Dropdown } from "./design/Dropdown.tsx";
 import { Btn, Chip, FieldLabel, Input, Label, Tile } from "./design/ui";
 import { BillingCard } from "./settings/BillingCard.tsx";
 import { OrgGeneralCard } from "./settings/OrgGeneralCard.tsx";
@@ -1257,26 +1258,29 @@ function SlackRoutingCard({ projectId }: { projectId: string | undefined }) {
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-[260px] flex-1">
             <FieldLabel>Channel</FieldLabel>
-            <select
+            <Dropdown
               value={pendingChannelId}
-              onChange={(e) => setPendingChannelId(e.target.value)}
+              onChange={setPendingChannelId}
               disabled={!projectId || channels.isLoading || channels.isError}
-              className="h-9 w-full appearance-none rounded-sm border border-border bg-surface-2 px-3 text-[13px] text-fg focus:border-border-strong focus:outline-none"
-            >
-              <option value="">
-                {channels.isLoading
+              placeholder={
+                channels.isLoading
                   ? "Loading channels…"
                   : channels.isError
                     ? "Failed to load channels"
-                    : "Select a channel…"}
-              </option>
-              {channelList.map((ch) => (
-                <option key={ch.id} value={ch.id}>
-                  {ch.isPrivate ? "🔒 " : "#"}
-                  {ch.name}
-                </option>
-              ))}
-            </select>
+                    : "Select a channel…"
+              }
+              emptyLabel="No channels found"
+              options={channelList.map((ch) => ({
+                value: ch.id,
+                searchText: `${ch.isPrivate ? "🔒 " : "#"}${ch.name}`,
+                label: (
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-subtle">{ch.isPrivate ? "🔒" : "#"}</span>
+                    <span>{ch.name}</span>
+                  </span>
+                ),
+              }))}
+            />
           </div>
           <Btn
             size="md"
@@ -1304,10 +1308,13 @@ function SlackRoutingCard({ projectId }: { projectId: string | undefined }) {
           )}
         </div>
 
-        {channels.isError && (
+        {channels.isError ? (
+          <p className="text-[12px] text-muted">Couldn't fetch the channel list — try reconnecting Slack.</p>
+        ) : (
           <p className="text-[12px] text-muted">
-            Couldn't fetch the channel list. Make sure the bot is invited to private channels you
-            want to use.
+            Don't see a private channel? Slack only lists private channels the bot belongs to — run{" "}
+            <code className="rounded-sm bg-surface-2 px-1 py-0.5 text-[11px]">/invite @Superlog</code>{" "}
+            in that channel, then reopen this list.
           </p>
         )}
       </div>
@@ -1373,11 +1380,10 @@ function WeeklyDigestCard() {
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-[260px] flex-1">
             <FieldLabel>Channel</FieldLabel>
-            <select
+            <Dropdown
               value={channelId}
               disabled={channels.isLoading || channels.isError || save.isPending}
-              onChange={(e) => {
-                const next = e.target.value;
+              onChange={(next) => {
                 if (!next) {
                   save.mutate({ enabled: false, channelId: null, channelName: null });
                   return;
@@ -1385,22 +1391,28 @@ function WeeklyDigestCard() {
                 const ch = channelList.find((c) => c.id === next);
                 save.mutate({ channelId: next, channelName: ch?.name ?? null });
               }}
-              className="h-9 w-full appearance-none rounded-sm border border-border bg-surface-2 px-3 text-[13px] text-fg focus:border-border-strong focus:outline-none"
-            >
-              <option value="">
-                {channels.isLoading
+              placeholder={
+                channels.isLoading
                   ? "Loading channels…"
                   : channels.isError
                     ? "Failed to load channels"
-                    : "— No channel —"}
-              </option>
-              {channelList.map((ch) => (
-                <option key={ch.id} value={ch.id}>
-                  {ch.isPrivate ? "🔒 " : "#"}
-                  {ch.name}
-                </option>
-              ))}
-            </select>
+                    : "No channel"
+              }
+              emptyLabel="No channels found"
+              options={[
+                { value: "", searchText: "No channel", label: "No channel" },
+                ...channelList.map((ch) => ({
+                  value: ch.id,
+                  searchText: `${ch.isPrivate ? "🔒 " : "#"}${ch.name}`,
+                  label: (
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-subtle">{ch.isPrivate ? "🔒" : "#"}</span>
+                      <span>{ch.name}</span>
+                    </span>
+                  ),
+                })),
+              ]}
+            />
           </div>
           <Btn
             size="md"
