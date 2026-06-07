@@ -25,6 +25,7 @@ import { authClient, useSession } from "./auth-client.ts";
 import { DashboardView } from "./dashboards/DashboardView.tsx";
 import { DashboardsList } from "./dashboards/DashboardsList.tsx";
 import { AppShell, ThemeToggle, Wordmark } from "./design/ui.tsx";
+import { McpInstallPill } from "./onboarding/McpInstallPill.tsx";
 import { OnboardingGate } from "./onboarding/OnboardingGate.tsx";
 import { startSkillOnboarding } from "./skillOnboarding.ts";
 
@@ -205,6 +206,7 @@ function AuthenticatedApp() {
         </RouteContainer>
       </AppShell>
       <CommandPalette />
+      <McpInstallPill />
     </OnboardingGate>
   );
 }
