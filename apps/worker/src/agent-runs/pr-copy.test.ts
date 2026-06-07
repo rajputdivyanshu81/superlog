@@ -47,6 +47,25 @@ test("buildPrBody fallback only includes summary and incident link", () => {
   assert.ok(!body.includes("Changed files"));
 });
 
+test("buildPrBody falls back to the generated summary for a whitespace-only body", () => {
+  const body = buildPrBody({
+    incidentUrl: "https://superlog.sh/incidents/inc-1",
+    result: { summary: "Users get an Unauthorized error." },
+    pr: { body: "   \n  " },
+  });
+
+  assert.equal(
+    body,
+    [
+      "# Summary",
+      "",
+      "Users get an Unauthorized error.",
+      "",
+      "[Incident on Superlog](https://superlog.sh/incidents/inc-1)",
+    ].join("\n"),
+  );
+});
+
 test("buildPrBody appends a linked Linear reference when the run filed a ticket", () => {
   const body = buildPrBody({
     incidentUrl: "https://superlog.sh/incidents/inc-1",

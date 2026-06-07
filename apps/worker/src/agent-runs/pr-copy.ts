@@ -37,7 +37,7 @@ export function buildPrBody(opts: {
 }): string {
   const explicit = opts.pr.body?.trim();
   const base =
-    explicit ??
+    explicit ||
     [
       "# Summary",
       "",
