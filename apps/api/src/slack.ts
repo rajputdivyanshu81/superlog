@@ -67,15 +67,30 @@ export function mountSlackPublic(app: Hono<any>): void {
     }
     const callbackWebOrigin = resolveCallbackWebOrigin(c, webOrigin);
     const callbackRedirectUrl = resolveSlackRedirectUrl(c, redirectUrl);
+    const host = c.req.header("host") ?? null;
     const err = c.req.query("error");
-    if (err) return c.redirect(`${callbackWebOrigin}/?slack=denied`, 302);
+    if (err) {
+      log.warn({ error: err, host }, "slack oauth callback denied at slack");
+      return c.redirect(`${callbackWebOrigin}/?slack=denied`, 302);
+    }
 
     const code = c.req.query("code");
     const state = c.req.query("state") ?? "";
-    if (!code) return c.redirect(`${callbackWebOrigin}/?slack=error`, 302);
+    if (!code) {
+      log.warn({ host }, "slack oauth callback missing code");
+      return c.redirect(`${callbackWebOrigin}/?slack=error`, 302);
+    }
 
     const decoded = verifyState(state, stateSecret);
-    if (!decoded) return c.json({ error: "invalid state" }, 400);
+    if (!decoded) {
+      // State failed HMAC verification or aged past its 10-minute TTL — the
+      // latter is what a user hits when they linger on Slack's consent screen
+      // (e.g. waiting on workspace-admin approval) and then return. Bounce them
+      // back to the app with a retryable error instead of dead-ending on a bare
+      // JSON 400, and log it so connect drop-offs are diagnosable.
+      log.warn({ host }, "slack oauth callback rejected: invalid or expired state");
+      return c.redirect(`${callbackWebOrigin}/?slack=error`, 302);
+    }
     const orgId = decoded.orgId;
     const projectId = decoded.projectId;
     log.info(
