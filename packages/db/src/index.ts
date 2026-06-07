@@ -90,7 +90,13 @@ export type {
   WebhookEndpoint,
   WebhookEventType,
 } from "./schema.js";
-export { agentRunFailureCategory, WEBHOOK_EVENT_TYPES } from "./schema.js";
+export {
+  agentRunFailureCategory,
+  isValidPrBaseBranch,
+  normalizePrBaseBranch,
+  PR_BASE_BRANCH_MAX_LENGTH,
+  WEBHOOK_EVENT_TYPES,
+} from "./schema.js";
 export {
   enqueueRedelivery,
   enqueueTestDelivery,

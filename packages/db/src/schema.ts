@@ -677,6 +677,7 @@ export const projectAutomationSettings = pgTable(
       .$type<"never" | "on_ready_to_pr" | "always">()
       .notNull()
       .default("on_ready_to_pr"),
+    prBaseBranch: text("pr_base_branch"),
     autoMergeFixPrs: text("auto_merge_fix_prs")
       .$type<"never" | "when_checks_pass" | "immediately">()
       .notNull()
@@ -1345,6 +1346,25 @@ export type LinearTicketPolicy = "never" | "on_ready_to_pr" | "always";
 export type PrPolicy = "never" | "on_ready_to_pr" | "always";
 export type AutoMergePolicy = "never" | "when_checks_pass" | "immediately";
 export type AutoMergeMethod = "squash" | "merge" | "rebase";
+export const PR_BASE_BRANCH_MAX_LENGTH = 200;
+
+export function normalizePrBaseBranch(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function isValidPrBaseBranch(value: string): boolean {
+  const branch = normalizePrBaseBranch(value);
+  if (!branch) return true;
+  if (branch.length > PR_BASE_BRANCH_MAX_LENGTH) return false;
+  if (branch === "@" || branch.startsWith("/") || branch.endsWith("/")) return false;
+  if (branch.endsWith(".") || branch.includes("..") || branch.includes("//")) return false;
+  if (branch.includes("@{")) return false;
+  if (/[\s~^:?*[\\\]\x00-\x1f\x7f]/.test(branch)) return false;
+  return branch
+    .split("/")
+    .every((part) => part && !part.startsWith(".") && !part.endsWith(".lock"));
+}
 
 export type LinearTicketInstruction = {
   id: string;

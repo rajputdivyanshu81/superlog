@@ -851,6 +851,7 @@ export type AgentSettings = {
   linearTicketPolicy: LinearTicketPolicy;
   linearTicketInstructions: LinearTicketInstruction[];
   prPolicy: PrPolicy;
+  prBaseBranch: string | null;
   autoMergeFixPrs: AutoMergePolicy;
   autoMergeMethod: AutoMergeMethod;
   issueFilterConfig: IssueFilterConfig;
