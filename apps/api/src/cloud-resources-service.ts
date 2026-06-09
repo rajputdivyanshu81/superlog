@@ -22,14 +22,18 @@ export function parseArn(arn: string): ParsedArn | null {
   const rest = parts.slice(5).join(":");
   let resourceType = "";
   let resourceId = rest;
+  // Split on whichever delimiter appears FIRST. Some ARNs are mixed-format
+  // (e.g. autoscaling: `autoScalingGroup:<id>:autoScalingGroupName/<name>`),
+  // where `:` separates the type but `/` appears later inside the id — always
+  // preferring `/` would mis-parse the type.
   const slash = rest.indexOf("/");
   const colon = rest.indexOf(":");
-  if (slash !== -1) {
-    resourceType = rest.slice(0, slash);
-    resourceId = rest.slice(slash + 1);
-  } else if (colon !== -1) {
+  if (colon !== -1 && (slash === -1 || colon < slash)) {
     resourceType = rest.slice(0, colon);
     resourceId = rest.slice(colon + 1);
+  } else if (slash !== -1) {
+    resourceType = rest.slice(0, slash);
+    resourceId = rest.slice(slash + 1);
   }
   return {
     partition: partition ?? "",
@@ -75,6 +79,10 @@ export function arnToCloudControl(arn: string): CloudControlRef | null {
     // resourceId is "cluster/service"; Cloud Control wants "serviceArn|cluster".
     const cluster = parsed.resourceId.split("/")[0] ?? "";
     return { typeName, identifier: `${arn}|${cluster}` };
+  }
+  if (typeName === "AWS::AutoScaling::AutoScalingGroup") {
+    // resourceId is "<id>:autoScalingGroupName/<name>"; the identifier is <name>.
+    return { typeName, identifier: parsed.resourceId.split("/").pop() ?? parsed.resourceId };
   }
   return { typeName, identifier: parsed.resourceId };
 }

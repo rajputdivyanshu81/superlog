@@ -29,6 +29,14 @@ test("parseArn handles type/id, type:id, and bare ids", () => {
   assert.equal(bucket?.region, "");
   assert.equal(bucket?.resourceType, "");
   assert.equal(bucket?.resourceId, "my-bucket");
+  // Mixed-format ARN (autoscaling): `:` separates the type but `/` appears later
+  // inside the id — the type must still parse as the part before the first `:`.
+  const asg = parseArn(
+    "arn:aws:autoscaling:us-west-2:1:autoScalingGroup:uuid-123:autoScalingGroupName/my-asg",
+  );
+  assert.equal(asg?.service, "autoscaling");
+  assert.equal(asg?.resourceType, "autoScalingGroup");
+  assert.equal(asg?.resourceId, "uuid-123:autoScalingGroupName/my-asg");
   assert.equal(parseArn("not-an-arn"), null);
 });
 
@@ -53,6 +61,13 @@ test("arnToCloudControl maps types + handles ELB-arn and ECS-composite ids", () 
     typeName: "AWS::ECS::Service",
     identifier: `${ecsArn}|my-cluster`,
   });
+  // ASG: identifier is the group name (after the last "/"), not the whole id
+  assert.deepEqual(
+    arnToCloudControl(
+      "arn:aws:autoscaling:us-west-2:1:autoScalingGroup:uuid-123:autoScalingGroupName/my-asg",
+    ),
+    { typeName: "AWS::AutoScaling::AutoScalingGroup", identifier: "my-asg" },
+  );
   // unsupported type → null
   assert.equal(arnToCloudControl("arn:aws:s3:::my-bucket"), null);
 });
