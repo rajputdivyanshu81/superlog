@@ -1106,15 +1106,23 @@ export function useProjectAgentMemories(projectId: string | undefined) {
   });
 }
 
+function requireProjectId(projectId: string | undefined): string {
+  if (!projectId) throw new Error("No project selected");
+  return projectId;
+}
+
 export function useCreateProjectAgentMemory(projectId: string | undefined) {
   const fetcher = useFetcher();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: { kind: AgentMemoryKind; title: string; body: string }) =>
-      fetcher<{ memory: AgentMemory }>(`/api/org/projects/${projectId}/agent-memories`, {
-        method: "POST",
-        body: JSON.stringify(input),
-      }),
+      fetcher<{ memory: AgentMemory }>(
+        `/api/org/projects/${requireProjectId(projectId)}/agent-memories`,
+        {
+          method: "POST",
+          body: JSON.stringify(input),
+        },
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["project-agent-memories", projectId] }),
   });
 }
@@ -1133,10 +1141,13 @@ export function useUpdateProjectAgentMemory(projectId: string | undefined) {
       body?: string;
       status?: "active" | "archived";
     }) =>
-      fetcher<{ memory: AgentMemory }>(`/api/org/projects/${projectId}/agent-memories/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(patch),
-      }),
+      fetcher<{ memory: AgentMemory }>(
+        `/api/org/projects/${requireProjectId(projectId)}/agent-memories/${id}`,
+        {
+          method: "PUT",
+          body: JSON.stringify(patch),
+        },
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["project-agent-memories", projectId] }),
   });
 }
@@ -1146,9 +1157,12 @@ export function useDeleteProjectAgentMemory(projectId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      fetcher<{ ok: boolean }>(`/api/org/projects/${projectId}/agent-memories/${id}`, {
-        method: "DELETE",
-      }),
+      fetcher<{ ok: boolean }>(
+        `/api/org/projects/${requireProjectId(projectId)}/agent-memories/${id}`,
+        {
+          method: "DELETE",
+        },
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["project-agent-memories", projectId] }),
   });
 }
