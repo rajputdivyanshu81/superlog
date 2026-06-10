@@ -1,6 +1,6 @@
 {
-  "id": "699c7298-b2b9-442d-8648-f0d51de4654b",
-  "prevId": "56aeb5c1-564b-4dd4-8880-3aa579e9d9d9",
+  "id": "45ff908f-1e6a-4ab8-a042-e724cd42d7cc",
+  "prevId": "f4d93ceb-ac41-44e1-ac71-e4ad9e9bb2ac",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -518,7 +518,7 @@
           "name": "project_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "kind": {
           "name": "kind",
@@ -654,12 +654,32 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
+        },
+        "agent_memories_project_org_fk": {
+          "name": "agent_memories_project_org_fk",
+          "tableFrom": "agent_memories",
+          "tableTo": "projects",
+          "columnsFrom": [
+            "project_id",
+            "org_id"
+          ],
+          "columnsTo": [
+            "id",
+            "org_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "agent_memories_single_source_check": {
+          "name": "agent_memories_single_source_check",
+          "value": "NOT (source_agent_run_id IS NOT NULL AND source_user_id IS NOT NULL)"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.agent_pr_events": {

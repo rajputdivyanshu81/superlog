@@ -1,2 +1,0 @@
-ALTER TABLE "agent_memories" ADD CONSTRAINT "agent_memories_project_org_fk" FOREIGN KEY ("project_id","org_id") REFERENCES "public"."projects"("id","org_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "agent_memories" ADD CONSTRAINT "agent_memories_single_source_check" CHECK (NOT (source_agent_run_id IS NOT NULL AND source_user_id IS NOT NULL));

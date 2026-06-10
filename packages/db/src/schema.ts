@@ -1383,9 +1383,9 @@ export const agentMemories = pgTable(
   },
   (t) => ({
     orgStatusIdx: index("agent_memories_org_status_idx").on(t.orgId, t.status),
-    // When project-scoped, the project must belong to the same org. Backed by
-    // the projects_id_org_uniq constraint on projects (added one migration
-    // earlier — the FK depends on it).
+    // The project must belong to the same org. Backed by the
+    // projects_id_org_uniq constraint on projects (added in its own earlier
+    // migration — this FK depends on it).
     projectOrgFk: foreignKey({
       name: "agent_memories_project_org_fk",
       columns: [t.projectId, t.orgId],
