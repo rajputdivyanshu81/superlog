@@ -6,6 +6,7 @@ import {
   schema,
 } from "@superlog/db";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { listActiveAgentMemories } from "./agent-memory-tools.js";
 import { buildAgentRunInstructions } from "./agent-run-instructions.js";
 import { listInstallationRepositories } from "./infra/github/repositories.js";
 import { logger } from "./logger.js";
@@ -43,6 +44,7 @@ export type AgentRunContext = {
   autoMergeFixPrs: schema.AutoMergePolicy;
   autoMergeMethod: schema.AutoMergeMethod;
   issueRows: Array<schema.Issue>;
+  memories: Array<schema.AgentMemory>;
 };
 
 export async function getProjectAutomation(projectId: string): Promise<{
@@ -123,6 +125,7 @@ export async function loadAgentRunContext(
     projectContext: project.projectContext,
     projectInstructions: automation.customInstructions,
   });
+  const memories = await listActiveAgentMemories(project.orgId, project.id);
   return {
     agentRun,
     incident,
@@ -138,6 +141,7 @@ export async function loadAgentRunContext(
     autoMergeFixPrs: automation.autoMergeFixPrs,
     autoMergeMethod: automation.autoMergeMethod,
     issueRows,
+    memories,
   };
 }
 

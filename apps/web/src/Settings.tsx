@@ -13,6 +13,7 @@ import {
   type LinearTicketInstruction,
   type LinearTicketPolicy,
   type PrPolicy,
+  type RepoBranch,
   type WebhookDelivery,
   type WebhookEndpoint,
   useAgentSettings,
@@ -25,7 +26,6 @@ import {
   useDeleteOrgProject,
   useDeleteSlackRoute,
   useDeleteWebhook,
-  type RepoBranch,
   useGithubBranches,
   useGithubInstallation,
   useGrantOrgRepoToProject,
@@ -79,6 +79,7 @@ import {
 } from "./api";
 import { Dropdown, type DropdownOption } from "./design/Dropdown.tsx";
 import { Btn, Chip, FieldLabel, Input, Label, Tile } from "./design/ui";
+import { AgentMemoriesCard } from "./settings/AgentMemoriesCard.tsx";
 import { BillingCard } from "./settings/BillingCard.tsx";
 import { OrgGeneralCard } from "./settings/OrgGeneralCard.tsx";
 import { OrgMembersCard } from "./settings/OrgMembersCard.tsx";
@@ -97,6 +98,7 @@ type ProjectSectionId =
   | "general"
   | "integrations"
   | "agent"
+  | "agent-memories"
   | "issue-filter"
   | "slack-channel"
   | "api-keys"
@@ -117,6 +119,7 @@ const PROJECT_SECTIONS: ReadonlyArray<{ id: ProjectSectionId; label: string }> =
   { id: "general", label: "General" },
   { id: "integrations", label: "Integrations" },
   { id: "agent", label: "Agent" },
+  { id: "agent-memories", label: "Agent memories" },
   { id: "issue-filter", label: "Issue filter" },
   { id: "slack-channel", label: "Slack channel" },
   { id: "api-keys", label: "API keys" },
@@ -742,6 +745,15 @@ function ProjectSectionView({
           subtitle="The flow each incident runs through. Toggle steps and configure their policies."
         >
           <AgentFlowchart projectId={projectId} />
+        </Section>
+      );
+    case "agent-memories":
+      return (
+        <Section
+          title="Agent memories"
+          subtitle="Durable facts the investigation agent carries across runs of this project — terminology, infra layout, lessons from your feedback. The agent saves these itself; review and prune them here."
+        >
+          <AgentMemoriesCard projectId={projectId} />
         </Section>
       );
     case "issue-filter":
